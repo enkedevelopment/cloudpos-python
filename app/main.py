@@ -66,10 +66,13 @@ async def _scan_image_bytes(img_bytes: bytes, include_web_image: bool = True) ->
 
         product_name = product.get("name", "")
         if include_web_image and product_name and product_name != "Unknown Product":
-            image_url = await run_in_threadpool(search_product_image_url, product_name, settings)
-            if image_url:
-                product["web_image_url"] = image_url
-                product["image_url"] = image_url
+            try:
+                image_url = await run_in_threadpool(search_product_image_url, product_name, settings)
+                if image_url:
+                    product["web_image_url"] = image_url
+                    product["image_url"] = image_url
+            except Exception as exc:
+                logger.warning("Product image lookup unavailable: %s", exc)
 
         logger.info("Scan complete: %s | MRP: %s", product.get("name"), product.get("mrp"))
         return product
