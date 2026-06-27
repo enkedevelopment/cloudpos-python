@@ -1,5 +1,8 @@
+import json
 import logging
 from functools import lru_cache
+
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,20 +21,29 @@ def get_vision_module():
 @lru_cache
 def get_vision_client():
     vision = get_vision_module()
+    credentials_json = get_settings().google_service_account_json
+
+    if credentials_json:
+        try:
+            from google.oauth2 import service_account
+
+            credentials_info = json.loads(credentials_json)
+            credentials = service_account.Credentials.from_service_account_info(credentials_info)
+            return vision.ImageAnnotatorClient(credentials=credentials)
+        except (ImportError, json.JSONDecodeError, ValueError, TypeError) as exc:
+            raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON is invalid") from exc
 
     return vision.ImageAnnotatorClient()
 
 
 def read_barcode(img_bytes: bytes) -> str | None:
     try:
-        import cv2
-        import numpy as np
+        import io
+
+        from PIL import Image
         from pyzbar.pyzbar import decode
 
-        arr = np.frombuffer(img_bytes, np.uint8)
-        image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-        if image is None:
-            return None
+        image = Image.open(io.BytesIO(img_bytes))
         codes = decode(image)
         return codes[0].data.decode("utf-8") if codes else None
     except ImportError as exc:
