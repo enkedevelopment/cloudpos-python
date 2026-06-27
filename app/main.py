@@ -156,6 +156,9 @@ async def ocr_file(file: UploadFile = File(...)) -> OCRResponse:
         )
     except HTTPException:
         raise
+    except RuntimeError as exc:
+        logger.error("OCR service unavailable: %s", exc)
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         logger.error("OCR failed:\n%s", traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal server error") from exc

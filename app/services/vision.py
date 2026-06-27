@@ -33,7 +33,10 @@ def get_vision_client():
         except (ImportError, json.JSONDecodeError, ValueError, TypeError) as exc:
             raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON is invalid") from exc
 
-    return vision.ImageAnnotatorClient()
+    try:
+        return vision.ImageAnnotatorClient()
+    except Exception as exc:
+        raise RuntimeError(f"Google Vision credentials are unavailable: {exc}") from exc
 
 
 def read_barcode(img_bytes: bytes) -> str | None:
@@ -59,8 +62,11 @@ def extract_product_raw_data(img_bytes: bytes) -> dict:
     client = get_vision_client()
     image = vision.Image(content=img_bytes)
 
-    text_response = client.text_detection(image=image)
-    label_response = client.label_detection(image=image)
+    try:
+        text_response = client.text_detection(image=image)
+        label_response = client.label_detection(image=image)
+    except Exception as exc:
+        raise RuntimeError(f"Google Vision OCR failed: {exc}") from exc
 
     if text_response.error.message:
         raise RuntimeError(text_response.error.message)
