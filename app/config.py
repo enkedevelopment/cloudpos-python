@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     max_concurrent_scans: int = 4
 
     google_application_credentials: str | None = None
+    google_service_account_json: str | None = None
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:4b"

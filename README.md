@@ -32,5 +32,5 @@ gunicorn app.main:app \
   --timeout 240
 ```
 
-Set `GOOGLE_APPLICATION_CREDENTIALS` to a Google Vision service-account JSON path. Set `GEMINI_API_KEY` to use Gemini for product and invoice JSON extraction; otherwise the service falls back to Ollama. Keep both credentials out of source control.
+Set `GOOGLE_APPLICATION_CREDENTIALS` to a Google Vision service-account JSON path locally. On Vercel, set `GOOGLE_SERVICE_ACCOUNT_JSON` to the complete JSON content instead. Set `GEMINI_API_KEY` to use Gemini for product and invoice JSON extraction; otherwise the service falls back to Ollama. Keep all credentials out of source control.
 # python-ai-epos
