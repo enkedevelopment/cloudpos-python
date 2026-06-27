@@ -33,3 +33,4 @@ gunicorn app.main:app \
 ```
 
 Set `GOOGLE_APPLICATION_CREDENTIALS` to a Google Vision service-account JSON path. Set `GEMINI_API_KEY` to use Gemini for product and invoice JSON extraction; otherwise the service falls back to Ollama. Keep both credentials out of source control.
+# python-ai-epos
