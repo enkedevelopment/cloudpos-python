@@ -3,10 +3,8 @@ import logging
 import re
 from typing import Any
 
-from openai import OpenAI
-
 from app.config import Settings
-from app.services.llm import call_ollama, parse_json_response
+from app.services.llm import call_text_llm, parse_json_response
 
 logger = logging.getLogger(__name__)
 
@@ -133,32 +131,9 @@ def parse_invoice_text(ocr_text: str, settings: Settings) -> dict[str, Any]:
     user_prompt = f"Parse this OCR invoice text and extract product rows:\n\n{cleaned}"
 
     try:
-        if settings.openrouter_api_key:
-            client = OpenAI(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=settings.openrouter_api_key,
-                timeout=settings.openrouter_timeout_seconds,
-            )
-            completion = client.chat.completions.create(
-                model=settings.openrouter_model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0,
-                max_tokens=4000,
-                extra_body={"reasoning": {"effort": "none", "exclude": True}},
-            )
-            content = completion.choices[0].message.content if completion.choices else None
-            if not content:
-                raise RuntimeError("Invoice parser returned empty content")
-            data = parse_json_response(content, {"items": []})
-            normalized = _normalize_invoice(data)
-        else:
-            prompt = f"{SYSTEM_PROMPT}\n\n{user_prompt}"
-            response = call_ollama(prompt, settings=settings)
-            data = parse_json_response(response, {"items": []})
-            normalized = _normalize_invoice(data)
+        response = call_text_llm(user_prompt, settings=settings, system_prompt=SYSTEM_PROMPT)
+        data = parse_json_response(response, {"items": []})
+        normalized = _normalize_invoice(data)
 
         if normalized["items"]:
             return normalized

@@ -5,6 +5,8 @@ import re
 from typing import Any
 
 import httpx
+from google import genai
+from google.genai import types
 
 from app.config import Settings
 
@@ -35,6 +37,49 @@ def call_ollama(prompt: str, settings: Settings, img_bytes: bytes | None = None)
         raise RuntimeError(f"Cannot connect to Ollama at {settings.ollama_base_url}") from exc
     except httpx.TimeoutException as exc:
         raise RuntimeError(f"Ollama timed out after {settings.ollama_timeout_seconds}s") from exc
+
+
+def call_gemini(
+    prompt: str,
+    settings: Settings,
+    system_prompt: str | None = None,
+    img_bytes: bytes | None = None,
+) -> str:
+    if not settings.gemini_api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
+
+    contents: list[Any] = [prompt]
+    if img_bytes is not None:
+        contents.append(types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"))
+
+    try:
+        with genai.Client(
+            api_key=settings.gemini_api_key,
+            http_options=types.HttpOptions(timeout=int(settings.gemini_timeout_seconds * 1000)),
+        ) as client:
+            response = client.models.generate_content(
+                model=settings.gemini_model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0,
+                    max_output_tokens=4000,
+                ),
+            )
+    except Exception as exc:
+        raise RuntimeError(f"Gemini request failed: {exc}") from exc
+
+    if not response.text:
+        raise RuntimeError("Gemini returned empty content")
+    return response.text
+
+
+def call_text_llm(prompt: str, settings: Settings, system_prompt: str | None = None) -> str:
+    if settings.gemini_api_key:
+        return call_gemini(prompt, settings=settings, system_prompt=system_prompt)
+
+    ollama_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+    return call_ollama(ollama_prompt, settings=settings)
 
 
 def parse_json_response(text: str, fallback: dict[str, Any]) -> dict[str, Any]:
@@ -124,9 +169,11 @@ Return only one valid JSON object with these exact fields:
 {{"name":"Dove Cream Beauty Bar","brand":"Dove","category":"Personal Care","hsn_code":"34011110","barcode":"8901234567890","sku":"DOVE-CREAM-BAR-100G","slug":"dove-cream-beauty-bar","description":"Dove Cream Beauty Bar is a gentle moisturising soap.","base_unit":"100g","price":45.00,"mrp":45.00,"quantity":"100g","ingredients":"Sodium Lauroyl Isethionate, Stearic Acid, Water","country_of_origin":"India","manufacturer":"Hindustan Unilever Ltd"}}
 
 Rules: never return null, never include markdown, and use real values from OCR/image when available."""
-    response = call_ollama(prompt, settings=settings, img_bytes=img_bytes)
+    if settings.gemini_api_key:
+        response = call_gemini(prompt, settings=settings, img_bytes=img_bytes)
+    else:
+        response = call_ollama(prompt, settings=settings, img_bytes=img_bytes)
     if not response.strip():
-        response = call_ollama(f"Return product JSON from this OCR text:\n{ocr_snippet}", settings=settings)
+        response = call_text_llm(f"Return product JSON from this OCR text:\n{ocr_snippet}", settings=settings)
     product = parse_json_response(response, product_fallback(raw_data))
     return sanitize_product(product, raw_data)
-

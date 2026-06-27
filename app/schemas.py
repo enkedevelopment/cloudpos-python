@@ -18,6 +18,5 @@ class OCRResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
-    ollama: str
+    provider: str
     model: str
-

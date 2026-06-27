@@ -75,29 +75,16 @@ async def _scan_image_bytes(img_bytes: bytes, include_web_image: bool = True) ->
         return product
 
 
-async def _add_invoice_item_images(data: dict) -> dict:
-    items = data.get("items", [])
-    if not isinstance(items, list):
-        return data
-
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-
-        product_name = str(item.get("Item") or item.get("name") or "").strip()
-        if not product_name:
-            continue
-
-        image_url = await run_in_threadpool(search_product_image_url, product_name, settings)
-        if image_url:
-            item["image_url"] = image_url
-            item["web_image_url"] = image_url
-
-    return data
-
-
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
+    if settings.gemini_api_key:
+        return HealthResponse(
+            status="ok",
+            version=settings.app_version,
+            provider="gemini",
+            model=settings.gemini_model,
+        )
+
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             response = await client.get(f"{settings.ollama_base_url}/api/tags")
@@ -107,14 +94,14 @@ async def health() -> HealthResponse:
         return HealthResponse(
             status="ok" if model_ok else "degraded",
             version=settings.app_version,
-            ollama="reachable",
+            provider="ollama",
             model=settings.ollama_model,
         )
     except Exception as exc:
         return HealthResponse(
             status="degraded",
             version=settings.app_version,
-            ollama=f"unreachable: {exc}",
+            provider=f"ollama (unreachable: {exc})",
             model=settings.ollama_model,
         )
 
@@ -185,8 +172,6 @@ async def scan_invoice(file: UploadFile = File(...)) -> ScanResponse:
             logger.info("Invoice OCR extracted %s characters", len(raw_ocr))
             logger.info("Parsing invoice OCR text")
             data = await run_in_threadpool(parse_invoice_text, raw_ocr, settings)
-            logger.info("Searching product images for invoice items")
-            data = await _add_invoice_item_images(data)
         logger.info("Invoice scan complete: %s items", len(data.get("items", [])))
         return ScanResponse(data=data)
     except HTTPException:

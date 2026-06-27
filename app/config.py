@@ -24,9 +24,9 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen3.5:4b"
     ollama_timeout_seconds: float = 180
 
-    openrouter_api_key: str | None = None
-    openrouter_model: str = "poolside/laguna-xs.2:free"
-    openrouter_timeout_seconds: float = 120
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-3-flash"
+    gemini_timeout_seconds: float = 120
 
     web_search_timeout_seconds: float = 20
     web_search_retries: int = 3
@@ -36,6 +36,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         case_sensitive=False,
+        extra="ignore",
     )
 
     def install_google_credentials_env(self) -> None:
@@ -53,4 +54,3 @@ def get_settings() -> Settings:
             settings.google_application_credentials = str(local_credentials.resolve())
     settings.install_google_credentials_env()
     return settings
-

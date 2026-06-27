@@ -32,5 +32,4 @@ gunicorn app.main:app \
   --timeout 240
 ```
 
-Set `GOOGLE_APPLICATION_CREDENTIALS` to a Google Vision service-account JSON path. Do not commit service-account files or API keys. Set `OPENROUTER_API_KEY` only if you want invoice parsing to use OpenRouter; otherwise the service uses Ollama.
-
+Set `GOOGLE_APPLICATION_CREDENTIALS` to a Google Vision service-account JSON path. Set `GEMINI_API_KEY` to use Gemini for product and invoice JSON extraction; otherwise the service falls back to Ollama. Keep both credentials out of source control.
