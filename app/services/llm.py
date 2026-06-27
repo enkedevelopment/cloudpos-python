@@ -169,11 +169,19 @@ Return only one valid JSON object with these exact fields:
 {{"name":"Dove Cream Beauty Bar","brand":"Dove","category":"Personal Care","hsn_code":"34011110","barcode":"8901234567890","sku":"DOVE-CREAM-BAR-100G","slug":"dove-cream-beauty-bar","description":"Dove Cream Beauty Bar is a gentle moisturising soap.","base_unit":"100g","price":45.00,"mrp":45.00,"quantity":"100g","ingredients":"Sodium Lauroyl Isethionate, Stearic Acid, Water","country_of_origin":"India","manufacturer":"Hindustan Unilever Ltd"}}
 
 Rules: never return null, never include markdown, and use real values from OCR/image when available."""
-    if settings.gemini_api_key:
-        response = call_gemini(prompt, settings=settings, img_bytes=img_bytes)
-    else:
-        response = call_ollama(prompt, settings=settings, img_bytes=img_bytes)
-    if not response.strip():
-        response = call_text_llm(f"Return product JSON from this OCR text:\n{ocr_snippet}", settings=settings)
+    try:
+        if settings.gemini_api_key:
+            response = call_gemini(prompt, settings=settings, img_bytes=img_bytes)
+        else:
+            response = call_ollama(prompt, settings=settings, img_bytes=img_bytes)
+        if not response.strip():
+            response = call_text_llm(
+                f"Return product JSON from this OCR text:\n{ocr_snippet}",
+                settings=settings,
+            )
+    except Exception as exc:
+        logger.warning("Product parser unavailable, using OCR fallback: %s", exc)
+        return sanitize_product(product_fallback(raw_data), raw_data)
+
     product = parse_json_response(response, product_fallback(raw_data))
     return sanitize_product(product, raw_data)
